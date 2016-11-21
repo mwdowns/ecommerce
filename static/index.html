@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>SuperStore</title>
+        <script src="angular.js"></script>
+        <script src="angular-ui-router.js"></script>
+        <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.5.8/angular-cookies.js"></script>
+        <script src="superstore.js"></script>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body ng-app="store">
+        Welcome to Rice SuperStore. The one stop shop for all your delicious rice needs. Welcome, {{user_name}}.
+        <ui-view></ui-view>
+    </body>
+</html>
