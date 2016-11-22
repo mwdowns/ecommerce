@@ -11,6 +11,13 @@
     </head>
     <body ng-app="store">
         Welcome to Rice SuperStore. The one stop shop for all your delicious rice needs. Welcome, {{user_name}}.
+        <div>
+          <a ui-sref="home">Home</a>
+          <a ui-sref="signup">Sign Up</a>
+          <a ui-sref="login">Login</a>
+          <button ng-click="logout()">Logout</button>
+          <a ui-sref="viewCart" ng-show="loggedIn">View Cart</a>
+        </div>
         <ui-view></ui-view>
     </body>
 </html>

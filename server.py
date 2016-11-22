@@ -92,7 +92,7 @@ def add_to_cart():
 def view_cart():
     get_token = request.args.get('auth_token')
     customer_id = db.query('''
-    select
+    SELECT
         customer.id
     from
         customer, auth_token
@@ -105,15 +105,24 @@ def view_cart():
         return 'Forbidden', 403
     else:
         product_query = db.query('''
-        select
-            product.id, product.name
+        SELECT
+            product.name, product.image_path, product.price, product.id as "product_id"
         from
             product, product_in_shopping_cart, customer
         where
             product.id = product_in_shopping_cart.product_id and product_in_shopping_cart.customer_id = customer.id and
             customer.id = $1;
-        ''', customer_id[0].id).namedresult()
-        return jsonify(product_query)
+        ''', customer_id[0].id).dictresult()
+        total_price = db.query("""
+            SELECT sum(price)
+            FROM product_in_shopping_cart
+            INNER JOIN product ON product.id = product_id
+            INNER JOIN auth_token ON auth_token.customer_id = product_in_shopping_cart.customer_id
+            WHERE auth_token.token = $1""", get_token).namedresult()[0].sum
+        return jsonify({
+            'product_query': product_query,
+            'total_price': total_price
+        })
 
 
 
@@ -121,7 +130,9 @@ def view_cart():
 @app.route('/api/shopping_cart/checkout', methods=["POST"])
 def checkout():
     post_token = request.get_json().get('auth_token')
-    product = request.get_json()
+    print 'this is the post_token', post_token
+    formData = request.get_json()
+    print 'this is formData', formData
     customer_id = db.query('''
     select
         customer.id
@@ -150,7 +161,12 @@ def checkout():
             WHERE auth_token.token = $1""", post_token).dictresult()
         purchase = db.insert('purchase', {
             'customer_id': customer_id,
-            'total_price': total_price
+            'total_price': total_price,
+            'city': formData['city'],
+            'street_address': formData['street_address'],
+            'state': formData['state'],
+            'post_code': formData['post_code'],
+            'country': formData['country']
         })
         for item in purchased_items:
             db.insert('product_in_purchase', {

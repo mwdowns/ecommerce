@@ -1,0 +1,36 @@
+<form ng-hide="formSubmitted" ng-submit="checkoutSubmit()" method="post">
+  <div>
+    <label for="street-address">Street Address:</label>
+    <input id="street-address" ng-model="streetAddress" type="text" name="street-address">
+  </div>
+  <div>
+    <label for="city">City:</label>
+    <input id="city" ng-model="city" type="text" name="city">
+  </div>
+  <div>
+    <label for="state">State:</label>
+    <input id="state" ng-model="state" type="text" name="state">
+  </div>
+  <div>
+    <label for="post-code">Postal Code:</label>
+    <input id="post-code" ng-model="postCode" type="text" name="post-code">
+  </div>
+  <div>
+    <label for="country">Country:</label>
+    <input id="country" ng-model="country" type="text" name="country">
+  </div>
+  <button type="submit">Submit</button>
+</form>
+
+<div ng-show="formSubmitted">
+  <p>{{streetAddress}}</p>
+  <p>{{city}}</p>
+  <p>{{state}}</p>
+  <p>{{postCode}}</p>
+  <p>{{country}}</p>
+  <p>{{total}}</p>
+  <button ng-click="confirmCheckout()">Confirm checkout</button>
+</div>
+
+<h1>status:</h1>
+{{formSubmitted}}

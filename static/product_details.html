@@ -2,5 +2,11 @@
     <h1>{{name}}</h1>
     <h3>{{description}}</h3>
     <img ng-src={{image}} />
-    <a href="#">Add to cart</a>
+    <button ng-click="addToCart()">Add to cart</a>
+</div>
+<div ng-show="rejected">
+    <h4>You aren't logged in! Either</h4>
+    <a ui-sref="login">Login</a>
+    <p>or</p>
+    <a ui-sref="signup">Sign up</a>
 </div>

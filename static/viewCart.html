@@ -1,0 +1,14 @@
+
+<div>
+  <h1>hello, these are the items in your cart</h1>
+  <ul>
+      <li ui-sref="product_details({product_id: item.product_id})" ng-repeat="item in cart">
+          <h3>{{item.name}}</h3>
+          <img ng-src="{{item.image_path}}">
+          <p>Price: {{item.price}}</p>
+      </li>
+  </ul>
+  <h4>Total price: {{total}}</h4>
+  <a ui-sref="home">Continue shopping</a>
+  <a ui-sref="checkout">Check out</a>
+</div>
