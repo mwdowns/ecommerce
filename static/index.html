@@ -7,16 +7,21 @@
         <script src="angular-ui-router.js"></script>
         <script src="http://ajax.googleapis.com/ajax/libs/angularjs/1.5.8/angular-cookies.js"></script>
         <script src="superstore.js"></script>
+        <script src="https://checkout.stripe.com/checkout.js"></script>
         <link rel="stylesheet" href="style.css">
     </head>
     <body ng-app="store">
         Welcome to Rice SuperStore. The one stop shop for all your delicious rice needs. Welcome, {{user_name}}.
         <div>
           <a ui-sref="home">Home</a>
-          <a ui-sref="signup">Sign Up</a>
-          <a ui-sref="login">Login</a>
-          <button ng-click="logout()">Logout</button>
-          <a ui-sref="viewCart" ng-show="loggedIn">View Cart</a>
+          <div ng-hide="loggedIn">
+            <a ui-sref="signup">Sign Up</a>
+            <a ui-sref="login">Login</a>
+          </div>
+          <div ng-show="loggedIn">
+            <button ng-click="logout()">Logout</button>
+            <a ui-sref="viewCart">View Cart</a>
+          </div>
         </div>
         <ui-view></ui-view>
     </body>

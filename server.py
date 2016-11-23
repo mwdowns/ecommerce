@@ -1,8 +1,10 @@
 from flask import Flask, flash, redirect, render_template, request, session, url_for, send_from_directory, jsonify
-import pg, os, random, string, bcrypt, uuid
+import pg, os, random, string, bcrypt, uuid, stripe
 
 db = pg.DB(
     dbname="superstore_db")
+
+stripe.api_key = "sk_test_Sn6QYMgatpXtCKopLITzeB0Z"
 
 db.debug = True
 
@@ -48,7 +50,7 @@ def login():
     rehash = bcrypt.hashpw(password.encode('utf-8'), encrypted_password[0].password)
     if rehash == encrypted_password[0].password:
         token = uuid.uuid4()
-        user_id = db.query('select id, first_name from customer where username = $1', user['username']).namedresult()
+        user_id = db.query('SELECT id, first_name FROM customer WHERE username = $1', user['username']).namedresult()
         db.insert (
             "auth_token",
             token = token,
@@ -69,15 +71,16 @@ def add_to_cart():
     post_token = request.get_json().get('auth_token')
     product = request.get_json()
     customer_id = db.query('''
-    select
+    SELECT
         customer.id
-    from
+    FROM
         customer, auth_token
-    where
+    WHERE
         customer.id = auth_token.customer_id and
         now() < token_expires and
         auth_token.token = $1
     ''', post_token).namedresult()
+
     if customer_id == []:
         return 'Forbidden', 403
     else:
@@ -94,31 +97,39 @@ def view_cart():
     customer_id = db.query('''
     SELECT
         customer.id
-    from
+    FROM
         customer, auth_token
-    where
+    WHERE
         customer.id = auth_token.customer_id and
         now() < token_expires and
         auth_token.token = $1
     ''', get_token).namedresult()
+
     if customer_id == []:
         return 'Forbidden', 403
     else:
         product_query = db.query('''
         SELECT
             product.name, product.image_path, product.price, product.id as "product_id"
-        from
+        FROM
             product, product_in_shopping_cart, customer
-        where
+        WHERE
             product.id = product_in_shopping_cart.product_id and product_in_shopping_cart.customer_id = customer.id and
             customer.id = $1;
         ''', customer_id[0].id).dictresult()
+
         total_price = db.query("""
-            SELECT sum(price)
-            FROM product_in_shopping_cart
-            INNER JOIN product ON product.id = product_id
-            INNER JOIN auth_token ON auth_token.customer_id = product_in_shopping_cart.customer_id
-            WHERE auth_token.token = $1""", get_token).namedresult()[0].sum
+            SELECT
+                sum(price)
+            FROM
+                product_in_shopping_cart
+            INNER JOIN
+                product ON product.id = product_id
+            INNER JOIN
+                auth_token ON auth_token.customer_id = product_in_shopping_cart.customer_id
+            WHERE
+                auth_token.token = $1""", get_token).namedresult()[0].sum
+
         return jsonify({
             'product_query': product_query,
             'total_price': total_price
@@ -130,35 +141,47 @@ def view_cart():
 @app.route('/api/shopping_cart/checkout', methods=["POST"])
 def checkout():
     post_token = request.get_json().get('auth_token')
-    print 'this is the post_token', post_token
     formData = request.get_json()
-    print 'this is formData', formData
-    customer_id = db.query('''
-    select
-        customer.id
-    from
+    customer_info = db.query('''
+    SELECT
+        customer.id, customer.email
+    FROM
         customer, auth_token
-    where
+    WHERE
         customer.id = auth_token.customer_id and
         now() < token_expires and
         auth_token.token = $1
     ''', post_token).namedresult()
-    if customer_id == []:
+
+    if customer_info == []:
         return 'Forbidden', 403
     else:
-        customer_id = customer_id[0].id
+        # our custom checkout code
+        customer_id = customer_info[0].id
+        customer_email = customer_info[0].email
         total_price = db.query("""
-        SELECT sum(price)
-            FROM product_in_shopping_cart
-            INNER JOIN product ON product.id = product_id
-            INNER JOIN auth_token ON auth_token.customer_id = product_in_shopping_cart.customer_id
-            WHERE auth_token.token = $1""", post_token).namedresult()[0].sum
+        SELECT
+            sum(price)
+        FROM
+            product_in_shopping_cart
+        INNER JOIN
+            product ON product.id = product_id
+        INNER JOIN
+            auth_token ON auth_token.customer_id = product_in_shopping_cart.customer_id
+        WHERE
+            auth_token.token = $1""", post_token).namedresult()[0].sum
+
         purchased_items = db.query("""
-        SELECT price, product.name, product.id
-            FROM product_in_shopping_cart
-            INNER JOIN product ON product.id = product_id
-            INNER JOIN auth_token ON auth_token.customer_id = product_in_shopping_cart.customer_id
-            WHERE auth_token.token = $1""", post_token).dictresult()
+        SELECT
+            price, product.name, product.id
+        FROM
+            product_in_shopping_cart
+        INNER JOIN
+            product ON product.id = product_id
+        INNER JOIN
+            auth_token ON auth_token.customer_id = product_in_shopping_cart.customer_id
+        WHERE
+            auth_token.token = $1""", post_token).dictresult()
         purchase = db.insert('purchase', {
             'customer_id': customer_id,
             'total_price': total_price,
@@ -174,6 +197,17 @@ def checkout():
                 'purchase_id': purchase['id']
             })
         db.query('DELETE FROM product_in_shopping_cart WHERE customer_id = $1', customer_id)
+
+        # code from Stripe
+        amount = (total_price * 100)
+
+        stripe.Charge.create(
+            amount=amount,
+            currency='usd',
+            source=formData['stripe_token'],
+            description='Flask Charge'
+        )
+
         return jsonify(purchase)
 
 

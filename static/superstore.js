@@ -1,5 +1,6 @@
 var app = angular.module('store', ['ui.router', 'ngCookies']);
 
+// This is the State controller section for the site. It controls the views that a user will see by loading page templates and designating which controllers run those views.
 app.config(function($stateProvider, $urlRouterProvider) {
   $stateProvider
     .state({
@@ -47,6 +48,7 @@ app.config(function($stateProvider, $urlRouterProvider) {
   $urlRouterProvider.otherwise('/');
 });
 
+// This is my API. It has all the various services I can use throughout my app. I use the shorthand notation for the services if they are post or get without parameters. If it is a get method that has parameters, I used the long form. I also take care of setting rootScope variables for handling the authorization tokens needed for cookies.
 app.factory('riceService', function($http, $cookies, $rootScope, $state) {
   var service = {};
   if (!$cookies.getObject('cookie_data')) {
@@ -59,93 +61,100 @@ app.factory('riceService', function($http, $cookies, $rootScope, $state) {
     $rootScope.auth_token = cookie.token;
     $rootScope.loggedIn = true;
   }
+
   $rootScope.logout = function() {
     $cookies.remove('cookie_data');
     $rootScope.user_name = 'Guest';
     $rootScope.auth_token = null;
+    $rootScope.loggedIn = false;
     $state.go('home');
   };
+
   service.getProducts = function() {
-    var url = "/api/products";
-    return $http({
-      method: "GET",
-      url: url
-    });
+    return $http.get(
+      '/api/products'
+    );
   };
+
   service.getDetails = function(id) {
     var url = '/api/product/' + id;
-    return $http({
-      method: "GET",
-      url: url
-    });
+    return $http.get(
+      url
+    );
   };
+
   service.signup = function(formData) {
-    var url = '/api/user/signup';
-    return $http({
-      method: 'POST',
-      url: url,
-      data: formData
-    });
+    return $http.post(
+      '/api/user/signup',
+      formData
+    );
   };
+
   service.login = function(formData) {
-    var url = '/api/user/login';
-    return $http({
-      method: 'POST',
-      url: url,
-      data: formData
-    }).success(function(login_data) {
+    return $http.post(
+      '/api/user/login',
+      formData
+    ).success(function(login_data) {
       $cookies.putObject('cookie_data', login_data);
       $rootScope.user_name = login_data.user_name;
       $rootScope.auth_token = login_data.token;
-      console.log('hey');
     });
   };
+
   service.addToCart = function(addToCartData) {
-    var url = '/api/shopping_cart';
-    return $http({
-      method: 'POST',
-      url: url,
-      data: addToCartData
-    });
+    return $http.post(
+      '/api/shopping_cart',
+      addToCartData
+    );
   };
+
   service.viewCart = function() {
     var url = '/api/shopping_cart';
     return $http({
       method: 'GET',
-      url: url,
+      url: '/api/shopping_cart',
       params: {
         auth_token: $rootScope.auth_token
       }
     });
   };
+
   service.checkout = function(formData) {
-    var url = '/api/shopping_cart/checkout';
-    return $http({
-      method: 'POST',
-      url: url,
-      data: formData
-    });
+    return $http.post(
+      '/api/shopping_cart/checkout',
+      formData
+    );
   };
 
   return service;
 });
 
+
+// This is my section for the various app controllers.
 app.controller("MainController", function($scope, riceService, $stateParams, $state) {
-  riceService.getProducts().success(function(results) {
-    $scope.results = results;
-    $scope.getItemId = function(item) {
-      $scope.id = item.id;
-    };
-  });
+  riceService.getProducts()
+    .success(function(results) {
+      $scope.results = results;
+      $scope.getItemId = function(item) {
+        $scope.id = item.id;
+      };
+    })
+    .error(function() {
+      console.log('our inventory has been depleted. sorry');
+    });
 });
 
 app.controller("DetailsController", function($scope, riceService, $stateParams, $state, $cookies, $rootScope) {
   $scope.id = $stateParams.product_id;
-  riceService.getDetails($scope.id).success(function(item) {
-    $scope.name = item.name;
-    $scope.description = item.description;
-    $scope.image = item.image_path;
-  });
+  riceService.getDetails($scope.id)
+    .success(function(item) {
+      $scope.name = item.name;
+      $scope.description = item.description;
+      $scope.image = item.image_path;
+    })
+    .error(function() {
+      console.log('sorry, i could not find what you are looking for');
+    });
   $scope.addToCart = function() {
     if (!$rootScope.loggedIn) {
       $scope.rejected = true;
@@ -176,16 +185,20 @@ app.controller("SignupController", function($scope, riceService, $cookies, $stat
         first_name: $scope.firstName,
         last_name: $scope.lastName
       };
-      riceService.signup(formData).success(function() {
-        if ($cookies.getObject('location')) {
-          var cookie = $cookies.getObject('location');
-          console.log(cookie);
-          $state.go('product_details', {product_id: Number(cookie.product_id)});
-        }
-        else {
-          $state.go('login');
-        }
-      });
+      riceService.signup(formData)
+        .success(function() {
+          if ($cookies.getObject('location')) {
+            var cookie = $cookies.getObject('location');
+            console.log(cookie);
+            $state.go('product_details', {product_id: Number(cookie.product_id)});
+          }
+          else {
+            $state.go('login');
+          }
+        })
+        .error(function() {
+          console.log('could not sign up');
+        });
     }
   };
 });
@@ -198,6 +211,7 @@ app.controller("LoginController", function($scope, riceService, $stateParams, $s
     };
     riceService.login(formData)
       .error(function(){
+        console.log('login failed');
         $scope.wronglogin = true;
       })
       .success(function() {
@@ -207,6 +221,10 @@ app.controller("LoginController", function($scope, riceService, $stateParams, $s
           $state.go('product_details', {product_id: Number(cookie.product_id)});
           $cookies.remove('location');
         }
+        else if ($cookies.getObject('cookie_data')) {
+          $state.go('home');
+          $rootScope.loggedIn = true;
+        }
         else {
           $state.go('login');
         }
@@ -215,30 +233,62 @@ app.controller("LoginController", function($scope, riceService, $stateParams, $s
 });
 
 app.controller("CartController", function($scope, riceService, $stateParams, $state, $cookies, $rootScope) {
-  riceService.viewCart().success(function(resultsArr) {
-    $scope.results = resultsArr;
-    $scope.cart = resultsArr.product_query;
-    $scope.total = resultsArr.total_price;
-  });
+  riceService.viewCart()
+    .success(function(resultsArr) {
+      $scope.results = resultsArr;
+      $scope.cart = resultsArr.product_query;
+      $scope.total = resultsArr.total_price;
+    })
+    .error(function() {
+      console.log('could not complete transaction');
+    });
 });
 
 app.controller("CheckoutController", function($scope, riceService, $stateParams, $state, $cookies, $rootScope) {
-  $scope.checkoutSubmit = function() {
+  // This packages up all the needed info to send to the backend upon a successful transaction.
+  $scope.checkoutSubmit = function(token) {
     var formData = {
       street_address: $scope.streetAddress,
       city: $scope.city,
       state: $scope.state,
       post_code: $scope.postCode,
       country: $scope.country,
-      auth_token: $rootScope.auth_token
+      auth_token: $rootScope.auth_token,
+      stripe_token: token
     };
     $scope.formSubmitted = true;
     return formData;
   };
+  // This retrieves the price from the cart, and sets the total for the Stripe functions to the site-total multiplied by 100.
+  riceService.viewCart().success(function(cart) {
+    $scope.total = cart.total_price;
+    $scope.stripeTotal = cart.total_price * 100;
+  });
+  // This is the stripe handler which uses the Stripe service for payment. It uses my personal, public stripe in order to open (line 280) the Stripe service. Also, on callback of that service it runs the checkout method.
+  $scope.stripeHandler = StripeCheckout.configure(
+    {
+    key: 'pk_test_HCW7XEDQe9gJIfUtWAGdqbFt',
+    locale: 'auto',
+    token: function callback(token) {
+      var stripeToken = token.id;
+      riceService.checkout($scope.checkoutSubmit(stripeToken))
+        .success(function() {
+          $scope.formSubmitted = false;
+          $state.go('thanks');
+        })
+        .error(function() {
+          console.log('something went wrong');
+        });
+    }
+  });
+  // This is the final call for checking out. It opens the Stripe popup that will take care of the credit card charge. Once successful, the callback StripeHandler runs the checkout method which runs the checkoutSubmit as well, which adds info to the purchase and products_in_purchase tables and deletes the items from the products_in_shopping_cart table.
   $scope.confirmCheckout = function() {
-    riceService.checkout($scope.checkoutSubmit()).success(function() {
-      $scope.formSubmitted = false;
-      $state.go('thanks');
+    $scope.stripeHandler.open({
+      name: $rootScope.user_name,
+      description: 'Rice SuperStore Checkout',
+      amount: $scope.stripeTotal
     });
+
+
   };
 });
