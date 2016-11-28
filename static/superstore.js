@@ -51,6 +51,7 @@ app.config(function($stateProvider, $urlRouterProvider) {
 // This is my API. It has all the various services I can use throughout my app. I use the shorthand notation for the services if they are post or get without parameters. If it is a get method that has parameters, I used the long form. I also take care of setting rootScope variables for handling the authorization tokens needed for cookies.
 app.factory('riceService', function($http, $cookies, $rootScope, $state) {
   var service = {};
+  // These are the checks for tokens and such in order to handle authentication of the user. The loggedIn variable in the first if statement will affect what the user can see and do on the site. Once cookies are detected, rootScope varables are set for the user_name, and auth_token.
   if (!$cookies.getObject('cookie_data')) {
     $rootScope.user_name = 'Guest';
     $rootScope.loggedIn = false;
@@ -61,7 +62,7 @@ app.factory('riceService', function($http, $cookies, $rootScope, $state) {
     $rootScope.auth_token = cookie.token;
     $rootScope.loggedIn = true;
   }
-
+  // Single logout handler that reinitiallizes the rootScope variables.
   $rootScope.logout = function() {
     $cookies.remove('cookie_data');
     $rootScope.user_name = 'Guest';
